@@ -39,7 +39,7 @@ object FQuote {
              values.forall(isStringConstant) =>
         values.collect { case Term.Literal(Constant.String(value)) => value }
       case tree =>
-        throw new QuoteError(s"String literal expected, but ${tree.show} found")
+        QuoteError(s"String literal expected, but ${tree.show} found")
     }
 
     // [a0, ...]: Any*

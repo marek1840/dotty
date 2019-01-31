@@ -17,7 +17,7 @@ object XmlQuote {
     import Term._
 
     def abort(msg: String): Nothing =
-      throw new QuoteError(msg)
+      QuoteError(msg)
 
     // for debugging purpose
     def pp(tree: Tree): Unit = {
