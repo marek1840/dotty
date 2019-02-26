@@ -1797,6 +1797,126 @@ class TypeComparer(initctx: Context) extends ConstraintHandling[AbsentContext] {
 
   /** Returns last check's debug mode, if explicitly enabled. */
   def lastTrace(): String = ""
+
+  /** Do `tp1` and `tp2` share a non-null inhabitant?
+   *
+   *  `false` implies that we found a proof; uncertainty default to `true`.
+   *
+   *  Proofs rely on the following properties of Scala types:
+   *
+   *  1. Single inheritance of classes
+   *  2. Final classes cannot be extended
+   *  3. ConstantTypes with distinc values are non intersecting
+   *  4. There is no value of type Nothing
+   */
+  def intersecting(tp1: Type, tp2: Type): Boolean = {
+    // println(s"intersecting(${tp1.show}, ${tp2.show})")
+    /** Can we enumerate all instantiations of this type? */
+    def isClosed(tp: Symbol): Boolean =
+      tp.is(Sealed) && tp.is(AbstractOrTrait) && !tp.hasAnonymousChild
+
+    /** Splits a close type into a disjunction of smaller types.
+     *  It should hold that `tp` and `decompose(tp).reduce(_ or _)`
+     *  denote the same set of values.
+     */
+    def decompose(sym: Symbol, tp: Type): List[Type] = {
+      import dotty.tools.dotc.transform.patmat.SpaceEngine
+      val se = new SpaceEngine
+      sym.children.map(x => se.refine(tp, x)).filter(_.exists)
+    }
+
+    (tp1.dealias, tp2.dealias) match {
+      case (tp1: TypeRef, tp2: TypeRef) if tp1.symbol.isClass && tp2.symbol.isClass =>
+        if (isSubType(tp1, tp2) || isSubType(tp2, tp1)) {
+          true
+        } else {
+          val cls1 = tp1.classSymbol // s
+          val cls2 = tp2.classSymbol // s
+          if (cls1.is(Final) || cls2.is(Final))
+            // One of these types is final and they are not mutually
+            // subtype, so they must be unrelated.
+            false
+          else if (!cls2.is(Trait) && !cls1.is(Trait))
+            // Both of these types are classes and they are not mutually
+            // subtype, so they must be unrelated by single inheritance
+            // of classes.
+            false
+          else if (isClosed(cls1))
+            decompose(cls1, tp1).exists(x => intersecting(x, tp2))
+          else if (isClosed(cls2))
+            decompose(cls2, tp2).exists(x => intersecting(x, tp1))
+          else
+            true
+        }
+      case (tp1: ConstantType, tp2: ConstantType) =>
+        tp1 == tp2
+      case (AppliedType(tycon1, args1), AppliedType(tycon2, args2)) =>
+        // Unboxed x.zip(y).zip(z).forall { case ((a, b), c) => f(a, b, c) }
+        def zip_zip_forall[A, B, C](x: List[A], y: List[B], z: List[C])(f: (A, B, C) => Boolean): Boolean =
+          x match {
+            case x :: xs => y match {
+              case y :: ys => z match {
+                case z :: zs => f(x, y, z) && zip_zip_forall(xs, ys, zs)(f)
+                case _ => true
+              }
+              case _ => true
+            }
+            case _ => true
+          }
+
+        tycon1 == tycon2 &&
+          zip_zip_forall(args1, args2, tycon1.typeParams) {
+            (arg1, arg2, tparam) =>
+              val v = tparam.paramVariance
+              // Note that the logic below is conservative in that is
+              // assumes that Covariant type parameters are Contravariant
+              // type
+              if (v > 0)
+                intersecting(arg1, arg2) || {
+                  // We still need to proof that `Nothing` is not a valid
+                  // instantiation of this type parameter. We have two ways
+                  // to get to that conclusion:
+                  // 1. `Nothing` does not conform to the type parameter's lb
+                  // 2. `tycon1` has a field typed with this type parameter.
+                  //
+                  // Because of separate compilation, the use of 2. is
+                  // limited to case classes.
+                  import dotty.tools.dotc.typer.Applications.productSelectorTypes
+                  val lowerBoundedByNothing = tparam.paramInfo.bounds.lo eq NothingType
+                  val typeUsedAsField =
+                    productSelectorTypes(tycon1, null).exists {
+                      case tp: TypeRef =>
+                        (tp.designator: Any) == tparam // Bingo!
+                      case _ =>
+                        false
+                    }
+                  lowerBoundedByNothing && !typeUsedAsField
+                }
+              else if (v < 0)
+                // Contravariant case: a value where this type parameter is
+                // instantiated to `Any` belongs to both types.
+                true
+              else
+                isSameType(arg1, arg2) // more precision
+        }
+      case (tp1: OrType, _)  =>
+        intersecting(tp1.tp1, tp2) || intersecting(tp1.tp2, tp2)
+      case (_, tp2: OrType)  =>
+        intersecting(tp1, tp2.tp1) || intersecting(tp1, tp2.tp2)
+      case (tp1: AndType, _) =>
+        intersecting(tp1.tp1, tp2) && intersecting(tp1.tp2, tp2) && intersecting(tp1.tp1, tp1.tp2)
+      case (_, tp2: AndType) =>
+        intersecting(tp1, tp2.tp1) && intersecting(tp1, tp2.tp2) && intersecting(tp2.tp1, tp2.tp2)
+      case (tp1: TypeProxy, tp2: TypeProxy) =>
+        intersecting(tp1.underlying, tp2) && intersecting(tp1, tp2.underlying)
+      case (tp1: TypeProxy, _) =>
+        intersecting(tp1.underlying, tp2)
+      case (_, tp2: TypeProxy) =>
+        intersecting(tp1, tp2.underlying)
+
+      case _ => true
+    }
+  }
 }
 
 object TypeComparer {
@@ -1897,123 +2017,6 @@ class TrackingTypeComparer(initctx: Context) extends TypeComparer(initctx) {
         case _ => mapOver(t)
       }
     }
-
-    /** Can we enumerate all instantiations of this type? */
-    def isClosed(tp: Symbol): Boolean =
-      tp.is(Sealed) && tp.is(AbstractOrTrait) && !tp.hasAnonymousChild
-
-    /** Splits a close type into a disjunction of smaller types.
-     *  It should hold that `tp` and `decompose(tp).reduce(_ or _)`
-     *  denote the same set of values.
-     */
-    def decompose(sym: Symbol, tp: Type): List[Type] = {
-      import dotty.tools.dotc.transform.patmat.SpaceEngine
-      val se = new SpaceEngine
-      sym.children.map(x => se.refine(tp, x)).filter(_.exists)
-    }
-
-    /** Do `tp1` and `tp2` share a non null inhabitant?
-     *
-     *  `false` implies that we found a proof; uncertainty default to `true`.
-     *
-     *  Proofs rely on the following properties of Scala types:
-     *
-     *  1. Single inheritance of classes
-     *  2. Final classes cannot be extended
-     *  3. ConstantTypes with distinc values are non intersecting
-     *  4. There is no value of type Nothing
-     */
-    def intersecting(tp1: Type, tp2: Type): Boolean =
-      (tp1.dealias, tp2.dealias) match {
-        case (tp1: TypeRef, tp2: TypeRef) if tp1.symbol.isClass && tp2.symbol.isClass =>
-          if (isSubType(tp1, tp2) || isSubType(tp2, tp1)) {
-            true
-          } else {
-            val cls1 = tp1.classSymbol
-            val cls2 = tp2.classSymbol
-            if (cls1.is(Final) || cls2.is(Final))
-              // One of these types is final and they are not mutually
-              // subtype, so they must be unrelated.
-              false
-            else if (!cls2.is(Trait) && !cls1.is(Trait))
-              // Both of these types are classes and they are not mutually
-              // subtype, so they must be unrelated by single inheritance
-              // of classes.
-              false
-            else if (isClosed(cls1))
-              decompose(cls1, tp1).exists(x => intersecting(x, tp2))
-            else if (isClosed(cls2))
-              decompose(cls2, tp2).exists(x => intersecting(x, tp1))
-            else
-              true
-          }
-        case (tp1: ConstantType, tp2: ConstantType) =>
-          tp1 == tp2
-        case (AppliedType(tycon1, args1), AppliedType(tycon2, args2)) =>
-          // Unboxed x.zip(y).zip(z).forall { case ((a, b), c) => f(a, b, c) }
-          def zip_zip_forall[A, B, C](x: List[A], y: List[B], z: List[C])(f: (A, B, C) => Boolean): Boolean =
-            x match {
-              case x :: xs => y match {
-                case y :: ys => z match {
-                  case z :: zs => f(x, y, z) && zip_zip_forall(xs, ys, zs)(f)
-                  case _ => true
-                }
-                case _ => true
-              }
-              case _ => true
-            }
-
-          tycon1 == tycon2 &&
-            zip_zip_forall(args1, args2, tycon1.typeParams) {
-              (arg1, arg2, tparam) =>
-                val v = tparam.paramVariance
-                // Note that the logic below is conservative in that is
-                // assumes that Covariant type parameters are Contravariant
-                // type
-                if (v > 0)
-                  intersecting(arg1, arg2) || {
-                    // We still need to proof that `Nothing` is not a valid
-                    // instantiation of this type parameter. We have two ways
-                    // to get to that conclusion:
-                    // 1. `Nothing` does not conform to the type parameter's lb
-                    // 2. `tycon1` has a field typed with this type parameter.
-                    //
-                    // Because of separate compilation, the use of 2. is
-                    // limited to case classes.
-                    import dotty.tools.dotc.typer.Applications.productSelectorTypes
-                    val lowerBoundedByNothing = tparam.paramInfo.bounds.lo eq NothingType
-                    val typeUsedAsField =
-                      productSelectorTypes(tycon1, null).exists {
-                        case tp: TypeRef =>
-                          (tp.designator: Any) == tparam // Bingo!
-                        case _ =>
-                          false
-                      }
-                    lowerBoundedByNothing && !typeUsedAsField
-                  }
-                else if (v < 0)
-                  // Contravariant case: a value where this type parameter is
-                  // instantiated to `Any` belongs to both types.
-                  true
-                else
-                  isSameType(arg1, arg2)
-          }
-        case (tp1: OrType, _)  =>
-          intersecting(tp1.tp1, tp2) || intersecting(tp1.tp2, tp2)
-        case (_, tp2: OrType)  =>
-          intersecting(tp1, tp2.tp1) || intersecting(tp1, tp2.tp2)
-        case (tp1: AndType, _) =>
-          intersecting(tp1.tp1, tp2) && intersecting(tp1.tp2, tp2)
-        case (_, tp2: AndType) =>
-          intersecting(tp1, tp2.tp1) && intersecting(tp1, tp2.tp2)
-        case (tp1: TypeProxy, tp2: TypeProxy) =>
-          intersecting(tp1.underlying, tp2) && intersecting(tp1, tp2.underlying)
-        case (tp1: TypeProxy, _) =>
-          intersecting(tp1.underlying, tp2)
-        case (_, tp2: TypeProxy) =>
-          intersecting(tp1, tp2.underlying)
-        case _ => true
-      }
 
     cases match {
       case cas :: cass =>
