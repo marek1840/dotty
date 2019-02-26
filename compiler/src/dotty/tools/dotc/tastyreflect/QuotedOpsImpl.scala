@@ -14,9 +14,8 @@ trait QuotedOpsImpl extends scala.tasty.reflect.QuotedOps with CoreImpl {
     def unseal(implicit ctx: Context): Term = PickledQuotes.quotedExprToTree(x)
   }
 
-  def QuotedTypeDeco[T](x: scala.quoted.Type[T]): QuotedTypeAPI = new QuotedTypeAPI {
-    def unseal(implicit ctx: Context): TypeTree = PickledQuotes.quotedTypeToTree(x)
-  }
+  protected def unsealType(tpe: quoted.Type[_])(implicit ctx: Context): TypeTree =
+    PickledQuotes.quotedTypeToTree(tpe)
 
   def TermToQuoteDeco(term: Term): TermToQuotedAPI = new TermToQuotedAPI {
 

@@ -13,7 +13,11 @@ trait QuotedOps extends Core {
     /** View this expression `Type[T]` as a `TypeTree` */
     def unseal(implicit ctx: Context): TypeTree
   }
-  implicit def QuotedTypeDeco[T](tpe: quoted.Type[T]): QuotedTypeAPI
+  implicit def QuotedTypeDeco[T <: AnyKind](tpe: quoted.Type[T]): QuotedTypeAPI = new QuotedTypeAPI {
+    override def unseal(implicit ctx: Context): TypeTree = unsealType(tpe)
+  }
+
+  protected def unsealType(tpe: quoted.Type[_])(implicit ctx: Context): TypeTree
 
   trait TermToQuotedAPI {
     /** Convert `Term` to an `Expr[T]` and check that it conforms to `T` */
