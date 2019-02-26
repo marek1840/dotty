@@ -1809,7 +1809,7 @@ class TypeComparer(initctx: Context) extends ConstraintHandling[AbsentContext] {
    *  3. ConstantTypes with distinc values are non intersecting
    *  4. There is no value of type Nothing
    */
-  def intersecting(tp1: Type, tp2: Type): Boolean = {
+  def intersecting(tp1: Type, tp2: Type)(implicit ctx: Context): Boolean = {
     // println(s"intersecting(${tp1.show}, ${tp2.show})")
     /** Can we enumerate all instantiations of this type? */
     def isClosed(tp: Symbol): Boolean =
