@@ -1,17 +1,7 @@
 package dotty.tools.dotc
 package tastyreflect
 
-import dotty.tools.dotc.core.Decorators._
-
-import scala.tasty.reflect
-
 trait FlagsOpsImpl extends scala.tasty.reflect.FlagsOps with CoreImpl {
-
-  def FlagsDeco(flagSet: Flags): FlagsAPI = new FlagsAPI {
-    def is(that: Flags): Boolean = flagSet is that
-    def |(that: Flags): Flags = flagSet | that
-    def &(that: Flags): Flags = flagSet & that
-  }
 
   object Flags extends FlagsModule {
     def Private: Flags = core.Flags.Private
