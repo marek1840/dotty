@@ -32,7 +32,8 @@ object Providers {
     }
 
     private def findTestCases(path: Path): Seq[Path] = {
-      Files.walk(path)
+      if (!Files.exists(path)) Nil
+      else Files.walk(path)
         .iterator()
         .asScala
         .filterNot(path => negativeTests.exists(p => p.matcher(path.toString).matches()))
@@ -45,5 +46,4 @@ object Providers {
       new CompileSource(name, path)
     }
   }
-
 }
