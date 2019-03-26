@@ -31,16 +31,32 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
 
     tree match {
       case g.PackageDef(id, statements) => picklePackageDef(id, statements)
-      case g.ClassDef(mods, name, tparams, impl) => pickleTypeDef(name, impl, Seq(tree.symbol))
+      case g.TypeDef(mods, name, tparams, rhs) => pickleTypeParameter(name, rhs, Seq(tree.symbol))
+
+      case g.ClassDef(mods, name, tparams, impl) =>
+        val template = impl.copy(body = tparams ::: impl.body) // scalac does not include type parameters in templates
+        pickleTypeDef(name, template, Seq(tree.symbol))
+
       case g.Template(parents, self, body) =>
-        // TODO type parameters and parameters and self
+        val (typeParameters, members) = body partition {
+          case stat: g.TypeDef => stat.symbol.isParameter
+          case stat: g.ValOrDefDef =>
+            stat.symbol.isParamAccessor && !stat.symbol.isSetter && !stat.symbol.isAccessor
+          case _ => false
+        }
+
+        // TODO check if it could be sorted instead of partitioned? constructors must be first
+        val (constructors, nonConstructor) = members partition {
+          case stat: g.DefDef => stat.symbol.isConstructor
+          case _ => false
+        }
 
         // need to pickle the super constructor call as parent_term
         val parentConstructor = body.find(_.symbol.isPrimaryConstructor).map {
             case defdef: g.DefDef => defdef.rhs.asInstanceOf[Global#Block].stats.head
         }
 
-        pickleTemplate(Nil, Nil, parentConstructor.toSeq, None, body)
+        pickleTemplate(typeParameters, Nil, parentConstructor.toSeq, None, constructors ::: nonConstructor)
 
       case tree@g.DefDef(mods, name, tparams, vparams, tpt, rhs) =>
         val returnType = if (tree.symbol.isConstructor) g.TypeTree(g.definitions.UnitTpe) else tpt

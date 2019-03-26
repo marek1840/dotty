@@ -45,9 +45,9 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     modifierPickler.pickleSequence(modifiers)
   }
 
-  protected final def pickleTemplate(typeParameters: Seq[Any], parameters: Seq[Any], parents: Seq[Tree],
+  protected final def pickleTemplate(typeParameters: Seq[Tree], parameters: Seq[Any], parents: Seq[Tree],
                                     self: Option[(Name, Tree)], statements: Seq[Tree]): Unit = tagged(TEMPLATE) {
-    // TODO {type,}parameters
+    pickleSequence(typeParameters)
 
     pickleSequence(parents)
     self.foreach {
@@ -69,6 +69,12 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     }
     pickle(returnType)
     body.foreach(pickle)
+    modifierPickler.pickleSequence(modifiers)
+  }
+
+  protected final def pickleTypeParameter(name: Name, rhs: Tree, modifiers: Seq[Modifier]): Unit = tagged(TYPEPARAM) {
+    pickleName(name)
+    pickle(rhs)
     modifierPickler.pickleSequence(modifiers)
   }
 

@@ -37,6 +37,9 @@ final class ScalacTypePickler(nameSection: ScalacPicklerNamePool,
         picklePackageTermRef(sym.fullNameAsName('.'))
       }
 
+    case g.TypeBounds(lo, hi) => pickleTypeBounds(lo, hi)
+
+
     case _ => throw new UnsupportedOperationException(s"Cannot pickle type [${t.getClass} $t]")
   }
 }
