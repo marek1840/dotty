@@ -15,7 +15,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
   extends TreePickler[Global#Tree, Global#Name](nameSection, underlying) with ScalacConversions {
 
   override protected type Type = Global#Type
-  override protected type Modifier = Global#Symbol
+  override protected type Modifiers = Global#Symbol
   override protected type Constant = Global#Constant
 
   override protected val typePickler: ScalacTypePickler = new ScalacTypePickler(nameSection, underlying)
@@ -33,12 +33,12 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
       case g.PackageDef(id, statements) => picklePackageDef(id, statements)
       case g.TypeDef(mods, name, tparams, rhs) =>
         assert(tparams.isEmpty, "Higher kinded types are not yet supported") // TODO
-        if (symbol.isTypeParameter) pickleTypeParameter(name, rhs, Seq(tree.symbol))
-        else pickleTypeDef(name, rhs, Seq(tree.symbol))
+        if (symbol.isTypeParameter) pickleTypeParameter(name, rhs, symbol)
+        else pickleTypeDef(name, rhs, symbol)
 
       case g.ClassDef(mods, name, tparams, impl) =>
         val template = impl.copy(body = tparams ::: impl.body) // scalac does not include type parameters in templates
-        pickleTypeDef(name, template, Seq(tree.symbol))
+        pickleTypeDef(name, template, symbol)
 
       case g.Template(parents, self, body) =>
         val (typeParameters, members) = body partition {
@@ -62,8 +62,8 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
         pickleTemplate(typeParameters, Nil, parentConstructor.toSeq, None, constructors ::: nonConstructor)
 
       case tree@g.DefDef(mods, name, tparams, vparams, tpt, rhs) =>
-        val returnType = if (tree.symbol.isConstructor) g.TypeTree(g.definitions.UnitTpe) else tpt
-        val body = if (tree.symbol.isPrimaryConstructor) None // TODO: Check if there's no information lost here
+        val returnType = if (symbol.isConstructor) g.TypeTree(g.definitions.UnitTpe) else tpt
+        val body = if (symbol.isPrimaryConstructor) None // TODO: Check if there's no information lost here
         else Some(tree.rhs)
         val name = if (symbol.isConstructor && owner.isTrait) g.nme.CONSTRUCTOR // FIXME: this is not enough, if trait is PureInterface, no $init$ is generated at all
         else symbol.name
@@ -75,7 +75,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
           }
         } else tparams
 
-        pickleDefDef(name, typeParameters, vparams, returnType, body, Seq(symbol))
+        pickleDefDef(name, typeParameters, vparams, returnType, body, symbol)
 
       case g.Ident(name) =>
         val isNonWildcardTerm = tree.isTerm && name != g.nme.WILDCARD

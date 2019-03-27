@@ -12,7 +12,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
   extends TreeSectionPickler[Tree, Name](nameSection, underlying) {
 
   protected type Type
-  protected type Modifier
+  protected type Modifiers
   protected type Constant
 
   final val cache = mutable.Map[Tree, Int]()
@@ -21,7 +21,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
 
   protected def constantPickler: ConstantPickler[Constant, Name]
 
-  protected def modifierPickler: ModifierPickler[Modifier, Name]
+  protected def modifierPickler: ModifierPickler[Modifiers, Name]
 
   final def pickle(value: Tree): Unit =
     if (cache.contains(value)) tagged(SHAREDtype) {
@@ -39,10 +39,10 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     pickleSequence(statements)
   }
 
-  protected final def pickleTypeDef(name: Name, template: Tree, modifiers: Seq[Modifier]): Unit = tagged(TYPEDEF) {
+  protected final def pickleTypeDef(name: Name, template: Tree, modifiers: Modifiers): Unit = tagged(TYPEDEF) {
     pickleName(name)
     pickle(template)
-    modifierPickler.pickleSequence(modifiers)
+    modifierPickler.pickle(modifiers)
   }
 
   protected final def pickleTemplate(typeParameters: Seq[Tree], parameters: Seq[Any], parents: Seq[Tree],
@@ -59,7 +59,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
   }
 
   protected def pickleDefDef(name: Name, typeParameters: Seq[Tree], curriedParams: Seq[Seq[Tree]],
-                            returnType: Tree, body: Option[Tree], modifiers: Seq[Modifier]): Unit = tagged(DEFDEF) {
+                            returnType: Tree, body: Option[Tree], modifiers: Modifiers): Unit = tagged(DEFDEF) {
     pickleName(name)
     pickleSequence(typeParameters)
     curriedParams.foreach { parameters =>
@@ -69,13 +69,13 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     }
     pickle(returnType)
     body.foreach(pickle)
-    modifierPickler.pickleSequence(modifiers)
+    modifierPickler.pickle(modifiers)
   }
 
-  protected final def pickleTypeParameter(name: Name, rhs: Tree, modifiers: Seq[Modifier]): Unit = tagged(TYPEPARAM) {
+  protected final def pickleTypeParameter(name: Name, rhs: Tree, modifiers: Modifiers): Unit = tagged(TYPEPARAM) {
     pickleName(name)
     pickle(rhs)
-    modifierPickler.pickleSequence(modifiers)
+    modifierPickler.pickle(modifiers)
   }
 
   // Terms
