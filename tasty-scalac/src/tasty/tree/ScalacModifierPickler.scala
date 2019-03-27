@@ -22,8 +22,8 @@ final class ScalacModifierPickler(nameSection: ScalacPicklerNamePool,
   override def pickle(symbol: Global#Symbol): Unit = {
     import symbol._
 
-    if (privateWithin.exists) {
-      val scope = if (isProtected) ModifierPickler.QualifiedProtected else ModifierPickler.QualifiedPrivate
+    if (privateWithin.exists) { // given private[a.b] privateWithin is "a" both in scalac and in dotty
+      val scope = if (isProtected) QualifiedProtected else QualifiedPrivate
       pickleQualifiedScope(scope, privateWithin.toType)
     }
     // TODO inline, static, local

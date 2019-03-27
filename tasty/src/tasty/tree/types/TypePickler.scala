@@ -38,6 +38,10 @@ abstract class TypePickler[Type, Name](nameSection: PicklerNamePool[Name],
     pickleName(name)
   }
 
+  protected final def picklePackageTypeRef(name: Name): Unit = tagged(TYPEREFpkg) {
+    pickleName(name)
+  }
+
   protected final def pickleTypeBounds(lo: Type, hi: Type): Unit = tagged(TYPEBOUNDS){
     pickle(lo)
     pickle(hi)

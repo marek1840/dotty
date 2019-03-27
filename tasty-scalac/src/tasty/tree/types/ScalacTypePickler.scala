@@ -25,8 +25,8 @@ final class ScalacTypePickler(nameSection: ScalacPicklerNamePool,
       }
     case g.TypeRef(pre, sym, args) =>
       if (args.isEmpty) {
-        val name = sym.name
-        pickleTypeRef(name, pre)
+        if (sym.hasPackageFlag) picklePackageTypeRef(sym.fullNameAsName('.'))
+        else pickleTypeRef(sym.name, pre)
       } else ??? // TODO APPLIEDTYPE
 
     case tpe@g.ThisType(sym) =>
