@@ -17,6 +17,9 @@ abstract class TastySectionPickler[A, Name](nameSection: PicklerNamePool[Name], 
   protected final def pickleSubsection(op: => Unit): Unit =
     underlying.pickleSubsection(op)
 
+  protected final def pickleByte(value: Int): Unit =
+    underlying.pickleByte(value)
+
   protected final def pickleNat(value: Int): Unit =
     underlying.pickleNat(value)
 

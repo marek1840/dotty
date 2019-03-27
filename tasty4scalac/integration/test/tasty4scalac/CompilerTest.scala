@@ -38,6 +38,7 @@ object CompilerTest {
     val testCases = for {
       testCase <- ScalaTestCaseSource.testCases()
       name = testCase.getFileName.toString
+//      if name.startsWith("class_with_higher_kinded_type_parameter.scala")
       code = readContent(testCase)
       scalacOutput = Scalac().compile(code).mapValues(convert)
       dottyOutput = Dotty().compile(code).mapValues(convert)
