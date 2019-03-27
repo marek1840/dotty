@@ -65,7 +65,14 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
         val name = if (symbol.isConstructor && owner.isTrait) g.nme.CONSTRUCTOR // FIXME: this is not enough, if trait is PureInterface, no $init$ is generated at all
         else symbol.name
 
-        pickleDefDef(name, tparams, vparams, returnType, body, Seq(symbol))
+        val typeParameters = if (symbol.isConstructor) { // scalac does not include tpyeparameters in constructors
+          symbol.owner.info.typeParams.map { paramSymbol =>
+            val tree = new g.TypeTree().setType(paramSymbol.info)
+            g.newTypeDef(paramSymbol, tree)() // FIXME this is pickled as TYPEBOUNDS, while dotty is pickling TYPEBOUNDStpt
+          }
+        } else tparams
+
+        pickleDefDef(name, typeParameters, vparams, returnType, body, Seq(symbol))
 
       case g.Ident(name) =>
         val isNonWildcardTerm = tree.isTerm && name != g.nme.WILDCARD
