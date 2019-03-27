@@ -32,6 +32,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
     tree match {
       case g.PackageDef(id, statements) => picklePackageDef(id, statements)
       case g.TypeDef(mods, name, tparams, rhs) =>
+        assert(tparams.isEmpty, "Higher kinded types are not yet supported") // TODO
         if (symbol.isTypeParameter) pickleTypeParameter(name, rhs, Seq(tree.symbol))
         else pickleTypeDef(name, rhs, Seq(tree.symbol))
 
