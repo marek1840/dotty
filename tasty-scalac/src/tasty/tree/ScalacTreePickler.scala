@@ -31,7 +31,9 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
 
     tree match {
       case g.PackageDef(id, statements) => picklePackageDef(id, statements)
-      case g.TypeDef(mods, name, tparams, rhs) => pickleTypeParameter(name, rhs, Seq(tree.symbol))
+      case g.TypeDef(mods, name, tparams, rhs) =>
+        if (symbol.isTypeParameter) pickleTypeParameter(name, rhs, Seq(tree.symbol))
+        else pickleTypeDef(name, rhs, Seq(tree.symbol))
 
       case g.ClassDef(mods, name, tparams, impl) =>
         val template = impl.copy(body = tparams ::: impl.body) // scalac does not include type parameters in templates
