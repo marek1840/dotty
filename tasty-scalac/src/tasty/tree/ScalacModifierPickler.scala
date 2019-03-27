@@ -28,7 +28,7 @@ final class ScalacModifierPickler(nameSection: ScalacPicklerNamePool,
     }
     // TODO inline, static, local
 
-    if (isPrivate || isTypeParameter) pickleModifier(Private)
+    if (isPrivate || isTypeParameter) pickleModifier(Private) // FIXME dotty seems to not emit this flag for typeParameter
     if (isProtected && !privateWithin.exists) pickleModifier(Protected)
     if (isModule) pickleModifier(Object)
     if (isFinal && !isModule) pickleModifier(Final)
@@ -37,7 +37,7 @@ final class ScalacModifierPickler(nameSection: ScalacPicklerNamePool,
     if (isOverride) pickleModifier(Override)
     if (isMacro) pickleModifier(Macro)
 
-    if (isTypeParameter) pickleModifier(Local)
+    if (isTypeParameter) pickleModifier(Local) // FIXME dotty seems to not emit this flag
     if (isSynthetic) pickleModifier(Synthetic)
     if (isArtifact) pickleModifier(Artifact)
 
