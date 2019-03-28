@@ -23,6 +23,8 @@ final class BinaryBuffer(initialSize: Int = 32) {
   def ensureCapacity(n: Int): Unit = {
     while (offset + n >= buffer.length) buffer = dble(buffer)
   }
+
+  protected[binary] def move(from: Int, to: Int): Unit = buffer(to) = buffer(from)
 }
 
 

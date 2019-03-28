@@ -1,12 +1,38 @@
 package tasty.binary.v2
 
-import org.junit.Assert.assertEquals
+import org.junit.Assert._
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
 
 @RunWith(classOf[JUnit4])
 class BinaryWriterTest {
+  @Test
+  def writesCompressedSections(): Unit = {
+    val writer = new BinaryWriter()
+    val sectionCount = 5
+    val expectedSectionSize = 2
+
+    for (n <- 1 to sectionCount) {
+      writer.write {
+        writer.writeInteger(n)
+      }
+    }
+
+    assertEquals(sectionCount * expectedSectionSize, writer.bytes.length)
+  }
+
+  @Test
+  def consecutiveCompressionsAreIdempotent(): Unit = {
+    val writer = new BinaryWriter()
+
+    writer.write {
+      writer.writeInteger(1)
+    }
+
+    assertArrayEquals(writer.bytes, writer.bytes)
+  }
+
   @Test
   def writeCompressedIntegers(): Unit = {
     for (byteCount <- 1 to 4) {
@@ -15,8 +41,7 @@ class BinaryWriterTest {
 
       writer.writeInteger(value)
 
-      val written = writer.bytes
-      assertEquals(byteCount, written.length)
+      assertEquals(byteCount, writer.bytes.length)
     }
   }
 
@@ -28,10 +53,7 @@ class BinaryWriterTest {
 
       writer.writeLongNat(value)
 
-      val written = writer.bytes
-      assertEquals(byteCount, written.length)
+      assertEquals(byteCount, writer.bytes.length)
     }
   }
-
-
 }
