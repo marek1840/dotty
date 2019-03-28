@@ -45,9 +45,9 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     modifierPickler.pickleSequence(modifiers)
   }
 
-  protected final def pickleTemplate(typeParameters: Seq[Any], parameters: Seq[Any], parents: Seq[Tree],
+  protected final def pickleTemplate(typeParameters: Seq[Tree], parameters: Seq[Any], parents: Seq[Tree],
                                     self: Option[(Name, Tree)], statements: Seq[Tree]): Unit = tagged(TEMPLATE) {
-    // TODO {type,}parameters
+    pickleSequence(typeParameters)
 
     pickleSequence(parents)
     self.foreach {
@@ -58,10 +58,10 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     pickleSequence(statements)
   }
 
-  protected def pickleDefDef(name: Name, typeParameters: Seq[Any], curriedParams: Seq[Seq[Tree]],
+  protected def pickleDefDef(name: Name, typeParameters: Seq[Tree], curriedParams: Seq[Seq[Tree]],
                             returnType: Tree, body: Option[Tree], modifiers: Seq[Modifier]): Unit = tagged(DEFDEF) {
     pickleName(name)
-    // TODO type parameters
+    pickleSequence(typeParameters)
     curriedParams.foreach { parameters =>
       tagged(PARAMS) {
         pickleSequence(parameters)
@@ -69,6 +69,12 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     }
     pickle(returnType)
     body.foreach(pickle)
+    modifierPickler.pickleSequence(modifiers)
+  }
+
+  protected final def pickleTypeParameter(name: Name, rhs: Tree, modifiers: Seq[Modifier]): Unit = tagged(TYPEPARAM) {
+    pickleName(name)
+    pickle(rhs)
     modifierPickler.pickleSequence(modifiers)
   }
 

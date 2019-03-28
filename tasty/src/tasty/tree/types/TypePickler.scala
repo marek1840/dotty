@@ -38,6 +38,11 @@ abstract class TypePickler[Type, Name](nameSection: PicklerNamePool[Name],
     pickleName(name)
   }
 
+  protected final def pickleTypeBounds(lo: Type, hi: Type): Unit = tagged(TYPEBOUNDS){
+    pickle(lo)
+    pickle(hi)
+  }
+
   protected final def pickleAnd(left: Type, right: Type): Unit = tagged(ANDtype) {
     pickle(left)
     pickle(right)
