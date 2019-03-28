@@ -3,19 +3,21 @@ package tasty.tree
 import tasty.Pickler
 import tasty.binary.SectionPickler
 import tasty.names.ScalacPicklerNamePool
+import tasty.tree.terms.ScalacTreePickler
 import tasty.tree.types.ScalacTypePickler
 
 import scala.tools.nsc.Global
 
 final class ScalacModifierPickler(nameSection: ScalacPicklerNamePool,
-                                  underlying: SectionPickler)
+                                  underlying: SectionPickler,
+                                  val treePickler: Pickler[Global#Tree])
                                  (implicit val g: Global)
   extends ModifierPickler[Global#Symbol, Global#Name](nameSection, underlying) {
 
   import ModifierPickler._
 
   override protected type Type = Global#Type
-
+  override protected type Tree = Global#Tree
 
   override protected val typePickler: Pickler[Global#Type] = new ScalacTypePickler(nameSection, underlying)
 
@@ -67,6 +69,10 @@ final class ScalacModifierPickler(nameSection: ScalacPicklerNamePool,
       if (isTrait) pickleModifier(Trait)
       if (isCovariant) pickleModifier(Covariant)
       if (isContravariant) pickleModifier(Contravariant)
+    }
+
+    symbol.annotations.foreach { annotation =>
+      pickleAnnotation(annotation.tpe, annotation.original)
     }
   }
 }

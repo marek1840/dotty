@@ -1,6 +1,6 @@
 package tasty.tree.terms
 
-import dotty.tools.dotc.core.tasty.TastyFormat.SELECT
+import dotty.tools.dotc.core.tasty.TastyFormat.{IDENTtpt, QUALTHIS, SELECT}
 import tasty.ScalacConversions
 import tasty.binary.SectionPickler
 import tasty.names.ScalacPicklerNamePool
@@ -22,7 +22,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
 
   override protected val constantPickler: ScalacConstantPickler = new ScalacConstantPickler(nameSection, underlying)
 
-  override protected val modifierPickler: ScalacModifierPickler = new ScalacModifierPickler(nameSection, underlying)
+  override protected val modifierPickler: ScalacModifierPickler = new ScalacModifierPickler(nameSection, underlying, this)
 
   override protected def dispatch(tree: Global#Tree): Unit = {
     val symbol = tree.symbol
@@ -89,7 +89,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
           typePickler.pickle(tp1)
         }
         else if (tree.isTerm) pickleIdent(name, tree.tpe)
-        else ??? // TODO pickleIdentTpt(name, tree.tpe)
+        else pickleTypeIdent(name, tree.tpe)
 
       case g.Select(qualifier, name) =>
         val appliesTypesToConstructor = symbol.isConstructor && owner.typeParams.nonEmpty
@@ -106,6 +106,11 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
       case g.Apply(fun, args) => pickleApply(fun, args)
 
       case g.Block(stats, expr) => pickleBlock(expr, stats)
+      case g.This(qualifier) =>
+        if (qualifier.isEmpty) {
+          // Needs to be a ThisType, but can be a TypeRef
+          pickleThis(g.ThisType(tree.symbol))
+        } else ???
 
       case g.TypeTree() => typePickler.pickle(tree.tpe)
 

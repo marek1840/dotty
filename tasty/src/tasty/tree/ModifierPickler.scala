@@ -11,8 +11,10 @@ abstract class ModifierPickler[Modifier, Name](nameSection: PicklerNamePool[Name
   extends TreeSectionPickler[Modifier, Name](nameSection, underlying) {
 
   protected type Type
+  protected type Tree
 
   protected val typePickler: Pickler[Type]
+  protected val treePickler: Pickler[Tree]
 
   protected final def pickleQualifiedScope(scope: QualifiedScope, t: Type): Unit = tagged(scope.tag) {
     typePickler.pickle(t)
@@ -20,6 +22,10 @@ abstract class ModifierPickler[Modifier, Name](nameSection: PicklerNamePool[Name
 
   protected final def pickleModifier(modifier: ModifierPickler.Modifier): Unit = pickleByte(modifier.tag)
 
+  protected final def pickleAnnotation(typ: Type, tree: Tree): Unit = tagged(ANNOTATION) {
+    typePickler.pickle(typ)
+    treePickler.pickle(tree)
+  }
 }
 
 object ModifierPickler {

@@ -84,6 +84,11 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     typePickler.pickle(typ)
   }
 
+  protected final def pickleTypeIdent(name: Name, typ: Type): Unit = tagged(IDENTtpt) {
+    pickleName(name)
+    typePickler.pickle(typ)
+  }
+
   protected final def pickleSelect(name: Name, term: Tree): Unit = tagged(IDENT) {
     pickleName(name)
     pickle(term)
@@ -98,6 +103,14 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
 
   protected final def pickleNew(typ: Type): Unit = tagged(NEW) {
     typePickler.pickle(typ)
+  }
+
+  protected final def pickleThis(typ: Type): Unit = tagged(THIS){
+    typePickler.pickle(typ)
+  }
+
+  protected final def pickleQualifiedThis(qualifier: Tree): Unit = tagged(QUALTHIS){
+    pickle(qualifier)
   }
 
   protected final def pickleApply(function: Tree, args: Seq[Tree]): Unit = tagged(APPLY) {
