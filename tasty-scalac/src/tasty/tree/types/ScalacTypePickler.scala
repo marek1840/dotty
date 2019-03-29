@@ -7,6 +7,10 @@ import tasty.names.{TastyName, ScalacNameConversions, ScalacPicklerNamePool}
 
 import scala.tools.nsc.Global
 
+/*TODO these types should have shared type, but they are kept separate in the cache
+* _1 = {Types$UniqueThisType@2955} "scala.type"
+* _1 = {Types$UniqueSingleType@3747} "scala.type"
+*/
 final class ScalacTypePickler(nameSection: ScalacPicklerNamePool,
                               underlying: SectionPickler)
                              (implicit g: Global)

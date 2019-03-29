@@ -49,7 +49,7 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
         val name = if (symbol.isConstructor && owner.isTrait) g.nme.CONSTRUCTOR // FIXME: this is not enough, if trait is PureInterface, no $init$ is generated at all
         else symbol.name
 
-        pickleDefDef(name, tparams, vparams, returnType, body, Seq(symbol))
+        pickleDefDef(name, tparams, vparams, returnType.tpe, body, Seq(symbol))
 
       case g.Ident(name) =>
         val isNonWildcardTerm = tree.isTerm && name != g.nme.WILDCARD
@@ -73,12 +73,18 @@ final class ScalacTreePickler(nameSection: ScalacPicklerNamePool,
           ??? // TODO pickleTypeApply(tree, targs)
         } else if (symbol.hasPackageFlag && !symbol.isRoot) {
           picklePackageRef(g.TermName(tree.toString()))
-        } else if (symbol.isConstructor) tree.tpe match {
+        } else if (symbol.isMethod) tree.tpe match {
           case g.MethodType(params, resultType) =>
-            val paramTypeNames = params.map(_.name)
-            val resultTypeName = resultType.typeSymbol.name
-            val signedName = TastyName.Signed("<init>", paramTypeNames, resultTypeName)
-            pickleConstructor(signedName, resultType)
+            // TODO this doesn't deal with changing scala.Any to Object
+            val paramTypeNames = params.map(_.typeOfThis.typeSymbol.fullName)
+            val resultTypeName = resultType.typeSymbol.fullName
+            if (symbol.isConstructor) {
+              val signedName = TastyName.Signed("<init>", paramTypeNames, resultTypeName)
+              pickleConstructor(signedName, resultType)
+            } else {
+              val signedName = TastyName.Signed(name, paramTypeNames, resultTypeName)
+              pickleSelect(signedName, qualifier)
+            }
         } else pickleSelect(name, qualifier)
 
       case g.Apply(fun, args) => pickleApply(fun, args)

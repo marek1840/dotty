@@ -63,10 +63,13 @@ trait ScalacNameConversions {
     nameToScalacName(name.toString)
   }
 
-  implicit def nameToScalacName(names: List[Global#Name]): List[TastyName] = {
+  implicit def nameToScalacName(names: Seq[Global#Name]): Seq[TastyName] = {
     names.map(nameToScalacName)
   }
 
+  implicit def nameToScalacNameStr(names: Seq[String]): Seq[TastyName] = {
+    names.map(nameToScalacName)
+  }
 
   implicit def nameToScalacName(name: String): TastyName = {
     val stringName = name.toString

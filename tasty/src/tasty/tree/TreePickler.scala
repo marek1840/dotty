@@ -24,7 +24,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
   protected def modifierPickler: ModifierPickler[Modifier, Name]
 
   final def pickle(value: Tree): Unit =
-    if (cache.contains(value)) tagged(SHAREDtype) {
+    if (cache.contains(value)) tagged(SHAREDterm) {
       pickleRef(cache(value))
     } else {
       cache += value -> currentOffset
@@ -59,7 +59,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
   }
 
   protected def pickleDefDef(name: Name, typeParameters: Seq[Any], curriedParams: Seq[Seq[Tree]],
-                            returnType: Tree, body: Option[Tree], modifiers: Seq[Modifier]): Unit = tagged(DEFDEF) {
+                            returnType: Type, body: Option[Tree], modifiers: Seq[Modifier]): Unit = tagged(DEFDEF) {
     pickleName(name)
     // TODO type parameters
     curriedParams.foreach { parameters =>
@@ -67,7 +67,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
         pickleSequence(parameters)
       }
     }
-    pickle(returnType)
+    typePickler.pickle(returnType)
     body.foreach(pickle)
     modifierPickler.pickleSequence(modifiers)
   }
@@ -78,7 +78,7 @@ abstract class TreePickler[Tree, Name](nameSection: PicklerNamePool[Name],
     typePickler.pickle(typ)
   }
 
-  protected final def pickleSelect(name: Name, term: Tree): Unit = tagged(IDENT) {
+  protected final def pickleSelect(name: Name, term: Tree): Unit = tagged(TERMREF) {
     pickleName(name)
     pickle(term)
   }
