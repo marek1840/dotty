@@ -1240,7 +1240,7 @@ class TreeUnpickler(reader: TastyReader,
     }
 
     def readCases(end: Addr)(implicit ctx: Context): List[CaseDef] =
-      collectWhile((nextUnsharedTag == CASEDEF) && currentAddr != end) {
+      collectWhile(currentAddr != end && (nextUnsharedTag == CASEDEF)) {
         if (nextByte == SHAREDterm) {
           readByte()
           forkAt(readAddr()).readCase()(ctx.fresh.setNewScope)

@@ -853,6 +853,69 @@ object Build {
       libraryDependencies := Seq("org.scala-lang" % "scalap" % scalacVersion)
     )
 
+  lazy val scalacPluginSettings = commonSettings ++ Seq(
+    version := dottyVersion,
+    scalaVersion := scalacVersion
+  )
+
+  lazy val tasty = project.
+    in(file("tasty")).
+    dependsOn(`dotty-compiler`). // as long as TastyFormat is in there
+    settings(commonSettings)
+
+  lazy val tastyDotty = project.
+    in(file("tasty-dotty")).
+    settings(commonSettings).
+    dependsOn(tasty, `dotty-compiler`)
+
+  lazy val tastyScalac = project.
+    in(file("tasty-scalac")).
+    dependsOn(tasty, `dotty-compiler`).
+    settings(commonSettings).
+    settings(libraryDependencies += "org.scala-lang" % "scala-compiler" % scalacVersion)
+
+  lazy val `tasty4scalac-plugin` = project.
+    in(file("tasty4scalac/plugin")).
+    dependsOn(tastyDotty, tastyScalac).
+    settings(scalacPluginSettings).
+    settings(
+      libraryDependencies := Seq("org.scala-lang" % "scala-compiler" % scalacVersion),
+    )
+
+  lazy val `tasty4scalac-integration` = project.
+    in(file("tasty4scalac/integration")).
+    dependsOn(`tasty4scalac-plugin`).
+    settings(scalacPluginSettings).
+    settings(
+      fork in Test := true,
+      javaOptions ++= {
+        val attList = (dependencyClasspath in Runtime).value
+        def lib(name: String): String = findLib(attList, name)
+
+        def toClasspath(strings: String*): String = strings.mkString(File.pathSeparator)
+
+        val scalaLibrary = lib("scala-library")
+        val scalaCompiler = lib("scala-compiler")
+        val scalaReflect = lib("scala-reflect")
+
+        val dottyLibrary = packageBin.in(`dotty-library`, Compile).value.absolutePath
+        val dottyCompiler = packageBin.in(`dotty-compiler`, Compile).value.absolutePath
+        val dottyInterfaces = packageBin.in(`dotty-interfaces`, Compile).value.absolutePath
+
+        val pluginJar = packageBin.in(`tasty4scalac-plugin`, Compile).value.absolutePath
+
+        val scalacClasspath = toClasspath(scalaLibrary, scalaCompiler, scalaReflect)
+        val pluginClasspath = toClasspath(pluginJar, dottyLibrary, dottyCompiler, dottyInterfaces)
+        val dottyClasspath = toClasspath(scalaLibrary, dottyLibrary, dottyCompiler, dottyInterfaces)
+
+        Seq(
+          "-Dscalac.classpath=" + scalacClasspath,
+          "-Dscalac.plugin.classpath=" + pluginClasspath,
+          "-Ddotty.classpath=" + dottyClasspath,
+          "-Dtest.root.directory=" + (baseDirectory.value / "test-resources")
+        )
+      }
+    )
 
   // sbt plugin to use Dotty in your own build, see
   // https://github.com/lampepfl/dotty-example-project for usage.

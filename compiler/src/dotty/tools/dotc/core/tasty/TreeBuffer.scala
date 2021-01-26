@@ -6,9 +6,11 @@ package tasty
 import util.Util.{bestFit, dble}
 import TastyBuffer.{Addr, NoAddr, AddrWidth}
 import config.Printers.pickling
-import ast.untpd.Tree
+// import ast.untpd.Tree
 
 class TreeBuffer extends TastyBuffer(50000) {
+
+  protected type Tree = Any
 
   private final val ItemsOverOffsets = 2
   private val initialOffsetSize = bytes.length / (AddrWidth * ItemsOverOffsets)

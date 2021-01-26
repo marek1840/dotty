@@ -1,39 +1,32 @@
-package dotty.tools
-package dotc
-package core
-package tasty
+package tasty4scalac
 
-import TastyFormat._
-import collection.mutable
-import TastyBuffer._
-import core.Symbols.{Symbol, ClassSymbol}
-import ast.tpd
-import Decorators._
+import dotty.tools.dotc.ast.tpd
+import dotty.tools.dotc.core.Decorators._
+import dotty.tools.dotc.core.Symbols.Symbol
+import dotty.tools.dotc.core.tasty.TastyBuffer._
+import dotty.tools.dotc.core.tasty.TastyFormat._
+import dotty.tools.dotc.core.tasty.{NameBuffer, TastyBuffer}
 
-class TastyPickler(val rootCls: ClassSymbol) {
+import scala.collection.mutable
+import scala.tools.nsc.Global
+
+class ScalacTastyPickler(val g: Global) {
 
   private val sections = new mutable.ArrayBuffer[(NameRef, TastyBuffer)]
 
-  val nameBuffer: NameBuffer = new NameBuffer
+  val nameBuffer = new NameBuffer
 
-  def newSection(name: String, buf: TastyBuffer): Unit =
+  def newSection(name: String, buf: TastyBuffer) =
     sections += ((nameBuffer.nameIndex(name.toTermName), buf))
 
   def assembleParts(): Array[Byte] = {
-    def lengthWithLength(buf: TastyBuffer) =
+    def lengthWithLength(buf: TastyBuffer) = {
+      buf.assemble()
       buf.length + natSize(buf.length)
+    }
 
-    nameBuffer.assemble()
-
-    sections.foreach(_._2.assemble())
-
-    val nameBufferHash = TastyHash.pjwHash64(nameBuffer.bytes)
-    val treeSectionHash +: otherSectionHashes = sections.map(x => TastyHash.pjwHash64(x._2.bytes))
-
-    // Hash of name table and tree
-    val uuidLow: Long = nameBufferHash ^ treeSectionHash
-    // Hash of positions, comments and any additional section
-    val uuidHi: Long = otherSectionHashes.fold(0L)(_ ^ _)
+    val uuidLow: Long = pjwHash64(nameBuffer.bytes)
+    val uuidHi: Long = sections.iterator.map(x => pjwHash64(x._2.bytes)).fold(0L)(_ ^ _)
 
     val headerBuffer = {
       val buf = new TastyBuffer(header.length + 24)
@@ -68,7 +61,7 @@ class TastyPickler(val rootCls: ClassSymbol) {
    *  Note that trees are looked up by reference equality,
    *  so one can reliably use this function only directly after `pickler`.
    */
-  var addrOfTree: tpd.Tree => Addr = (_ => NoAddr)
+  var addrOfTree: tpd.Tree => Option[Addr] = (_ => None)
 
   /**
    * Addresses in TASTY file of symbols, stored by pickling.
@@ -77,6 +70,23 @@ class TastyPickler(val rootCls: ClassSymbol) {
    */
   var addrOfSym: Symbol => Option[Addr] = (_ => None)
 
-  val treePkl: TreePickler = new TreePickler(this)
+  val treePkl = new ScalacTreePickler(this, g)
 
+  /** Returns a non-cryptographic 64-bit hash of the array.
+   *
+   *  from https://en.wikipedia.org/wiki/PJW_hash_function#Implementation
+   */
+  private def pjwHash64(data: Array[Byte]): Long = {
+    var h = 0L
+    var high = 0L
+    var i = 0
+    while (i < data.length) {
+      h = (h << 4) + data(i)
+      high = h & 0xF0000000L
+      h ^= high >> 24
+      h &= ~high
+      i += 1
+    }
+    h
+  }
 }

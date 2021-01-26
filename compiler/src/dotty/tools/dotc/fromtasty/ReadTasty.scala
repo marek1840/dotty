@@ -10,6 +10,7 @@ import SymDenotations.ClassDenotation
 import NameOps._
 import ast.Trees.Tree
 import Phases.Phase
+import dotty.tools.dotc.util.SourceFile
 
 
 /** Load trees from TASTY files */
@@ -70,7 +71,12 @@ class ReadTasty extends Phase {
           def moduleClass = clsd.owner.info.member(className.moduleClassName).symbol
           compilationUnit(clsd.classSymbol).orElse(compilationUnit(moduleClass))
         case _ =>
-          cannotUnpickle(s"no class file was found")
+          // cannotUnpickle(s"no class file was found")
+          val source: SourceFile = new SourceFile(io.AbstractFile.getFile(className.toString), Array[Char]())
+          val unpickler = new core.tasty.DottyUnpickler(source.file.toByteArray)
+          unpickler.enter(Set())
+          val unit = CompilationUnit(source, unpickler.tree.withSpan(util.Spans.Span(0, 0)), forceTrees = true)
+          Some(unit)
       }
     case unit =>
      Some(unit)

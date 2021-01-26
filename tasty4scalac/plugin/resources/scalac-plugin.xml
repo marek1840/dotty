@@ -1,0 +1,4 @@
+<plugin>
+  <name>tasty4scalac</name>
+  <classname>tasty4scalac.Plugin</classname>
+</plugin>
